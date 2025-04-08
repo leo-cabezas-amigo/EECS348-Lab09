@@ -11,27 +11,64 @@ Lab #           = 9
 
 #include "matrices.hpp"
 
-SqIntMatrix::SqIntMatrix(){
+std::tuple<hyper_tuple, std::size_t> init_read_matrices(std::ifstream& file){
+    // Declares the output hyper_tuple and its to-be entry elements.
+    hyper_tuple hyp_tuple;
+    SqTypeMatrix<int>::m_type_2tuple m_int_2tuple;          // int instance of m_type_2tuple, first entry.
+    SqTypeMatrix<double>::m_type_2tuple m_double_2tuple;    // double instance of m_type_2tuple, second entry.
+
+    std::size_t matrix_size;    // Holds the parsed matrix size.
+    std::size_t type_flag;      // Holds the parsed type flag.
+    
+    file >> matrix_size;        // Parses the matrix size from the file.
+    file >> type_flag;          // Parses the type flag from the file.
+    file.clear();                   // Clear any error flags (if any; probably unnecessary).
+    file.seekg(0, std::ios::beg);   // Return to the beginning of the file before calling SqTypeMatrix<type>::read_matrices().
+
+    switch(type_flag){  // Calls the appropriate type instance of SqTypeMatrix<type>::read_matrices() according to the type flag.
+        case 0:     // Case type == int.
+            m_int_2tuple = SqTypeMatrix<int>::read_matrices(file);
+            break;
+        case 1:     // Case type == double.
+            m_double_2tuple = SqTypeMatrix<double>::read_matrices(file);
+            break;
+        default:    // Other type flag values are considered invalid.
+            std::cerr << "Error in 'init_read_matrices()': Undefined matrix type flag.\n";
+    }
+
+    // Generates the hyper_tuple containing all m_type_2tuple variations. Only one type instance of m_type_2tuple contains
+    // the parsed matrices, since the switch statement only calls SqTypeMatrix<type>::read_matrices() for the appropriate
+    // data type according to the type flag. The other m_type_2tuple instances are placeholders, and are unused.
+    hyp_tuple = std::make_tuple(m_int_2tuple, m_double_2tuple);     
+
+    return std::make_tuple(hyp_tuple, type_flag);   // Returns a tuple containing the hyper_tuple and the type flag.
+}
+
+template <typename type>    // This method belongs to a templated class.
+SqTypeMatrix<type>::SqTypeMatrix(){
     this->size = 0; // Set size to 0 for the default constructor (signifies empty array).
     return;
 }
 
-SqIntMatrix::SqIntMatrix(std::stringstream& sstream){
-    this->load_matrix(sstream); // Initializes the matrix instance with the SqIntMatrix::load_matrix() method.
+template <typename type>    // This method belongs to a templated class.
+SqTypeMatrix<type>::SqTypeMatrix(std::stringstream& sstream){
+    this->load_matrix(sstream); // Initializes the matrix instance with the SqTypeMatrix<type>::load_matrix() method.
     return;
 }
 
-void SqIntMatrix::load_matrix(std::stringstream& sstream){
-    sstream >> this->size;  // Get the matrix size from the stringstream.
+template <typename type>    // This method belongs to a templated class.
+void SqTypeMatrix<type>::load_matrix(std::stringstream& sstream){
+    sstream >> this->size;  // Get the matrix size from the stringstream. 
     if (this->size == 0){   // Cannot read size 0 matrices (no elements to be read).
-        std::cerr << "Error in 'SqIntMatrix::load_matrix()': Can't load a size 0 matrix.\n";
+        std::cerr << "Error in 'SqTypeMatrix<type>::load_matrix()': Can't load a size 0 matrix.\n";
         return;
     }
+    sstream >> this->type_flag;     // Gets the type flag from the stringstream.
 
     this->array.clear();    // Erases the contents of this->array (in case it was already populated).
 
-    int elem_buffer;                // Temporarily holds integer values read from sstream.
-    std::vector<int> row_buffer;    // Temporarily holds entire rows read from sstream.
+    type elem_buffer;                // Temporarily holds type values read from sstream.
+    std::vector<type> row_buffer;    // Temporarily holds entire rows read from sstream.
     for (int i = 0; i < this->size; i++){           // Iterates over the matrix rows.
         for (int j = 0; j < this->size; j++){       // Iterates over the matrix columns.
             sstream >> elem_buffer;             // Reads the next element from sstream.
@@ -43,50 +80,58 @@ void SqIntMatrix::load_matrix(std::stringstream& sstream){
     return;
 }
 
-m_int_2tuple SqIntMatrix::read_matrices(std::ifstream& file){
-    m_int_2tuple matrices;  // 2-tuple to store the two matrices that will be read.
+template <typename type>    // This static method belongs to a templated class.
+typename SqTypeMatrix<type>::m_type_2tuple SqTypeMatrix<type>::read_matrices(std::ifstream& file){
+    SqTypeMatrix<type>::m_type_2tuple matrices;  // 2-tuple to store the two matrices that will be read.
     
     std::size_t matrix_size;    // Holds the size value read from the file.
-    int buffer_int;             // Temporarily holds integer values read from the file.
+    std::size_t type_flag;      // Holds the type flag value read from the file (unused in this function).
+    type elem_buffer;           // Temporarily holds type values read from the file.
     std::string matrix_string1, matrix_string2; // Strings that will be used to generate the stringstreams.
     std::stringstream sstream1, sstream2;       // Stringstreams that will be used to initialize the matrices.
 
     file >> matrix_size;    // Reads the matrix size from the file.
-    matrix_string1 += std::to_string(matrix_size) + " ";    // Appends the matrix size to matrix_string1
-    matrix_string2 += std::to_string(matrix_size) + " ";    // Appends the matrix size to matrix_string2
+    file >> type_flag;      // Reads the type flag from the file.
+
+    matrix_string1 += std::to_string(matrix_size) + " ";    // Appends the matrix size to matrix_string1.
+    matrix_string2 += std::to_string(matrix_size) + " ";    // Appends the matrix size to matrix_string2.
+    matrix_string1 += std::to_string(type_flag) + " ";      // Appends the matrix type flag to matrix_string1.
+    matrix_string2 += std::to_string(type_flag) + " ";      // Appends the matrix type flag to matrix_string2.
     
-    // Reads every element corresponding to the first matrix, and appends it to matrix_string1
+    // Reads every element corresponding to the first matrix, and appends it to matrix_string1.
     for (int i = 0; i < matrix_size * matrix_size; i++){
-        file >> buffer_int;
-        matrix_string1 += std::to_string(buffer_int) + " ";
+        file >> elem_buffer;
+        matrix_string1 += std::to_string(elem_buffer) + " ";
     }
 
-    // Reads every element corresponding to the second matrix, and appends it to matrix_string2
+    // Reads every element corresponding to the second matrix, and appends it to matrix_string2.
     for (int j = 0; j < matrix_size * matrix_size; j++){
-        file >> buffer_int;
-        matrix_string2 += std::to_string(buffer_int) + " ";
+        file >> elem_buffer;
+        matrix_string2 += std::to_string(elem_buffer) + " ";
     }
 
-    sstream1.str(matrix_string1);   // Populates the stringstream sstream1 with matrix_string1
-    sstream2.str(matrix_string2);   // Populates the stringstream sstream2 with matrix_string2
+    sstream1.str(matrix_string1);   // Populates the stringstream sstream1 with matrix_string1.
+    sstream2.str(matrix_string2);   // Populates the stringstream sstream2 with matrix_string2.
 
-    SqIntMatrix A(sstream1);    // Initializes the first matrix with sstream1 (calls SqIntMatrix::load_matrix())
-    SqIntMatrix B(sstream2);    // Initializes the second matrix with sstream2 (calls SqIntMatrix::load_matrix())
+    SqTypeMatrix<type> A(sstream1);     // Initializes the first matrix with sstream1 (calls SqTypeMatrix<type>::load_matrix()).
+    SqTypeMatrix<type> B(sstream2);     // Initializes the second matrix with sstream2 (calls SqTypeMatrix<type>::load_matrix()).
     matrices = std::make_tuple(A, B);   // Assigns the 2-tuple containing A and B to 'matrices'.
 
     return matrices;    // Returns the 2-tuple containing the read matrices.
 }
 
-SqIntMatrix SqIntMatrix::operator + (const SqIntMatrix& B){
+template <typename type>    // This method belongs to a templated class.
+SqTypeMatrix<type> SqTypeMatrix<type>::operator + (const SqTypeMatrix<type>& B){
     if (this->size != B.size){  // Can't add matrices of different sizes.
-        std::cerr << "Error in 'SqIntMatrix::operator + ()': Can't add matrices of different sizes.\n";
-        return SqIntMatrix();   // Returns an empty matrix to end function exection.
+        std::cerr << "Error in 'SqTypeMatrix<type>::operator + ()': Can't add matrices of different sizes.\n";
+        return SqTypeMatrix<type>();   // Returns an empty matrix to end function exection.
     }
 
-    SqIntMatrix AplusB;         // Stores the result of A + B.
-    AplusB.size = this->size;   // The size of A + B is the same as that of A (or B).
-    
-    std::vector<int> row_buffer;    // Temporarily holds entire rows computed when performing addition.
+    SqTypeMatrix<type> AplusB;      // Stores the result of A + B.
+    AplusB.size = this->size;       // The size of A + B is the same as that of A (or B).
+    AplusB.type_flag = this->type_flag;  // The type flag of A + B is the same as that of A (or B).
+
+    std::vector<type> row_buffer;    // Temporarily holds entire rows computed when performing addition.
     for (int i = 0; i < AplusB.size; i++){      // Iterates over the matrices' rows.
         for (int j = 0; j < AplusB.size; j++){  // Iterates over the matrices' columns.
             row_buffer.push_back(this->array[i][j] + B.array[i][j]);    // Appends the result of adding A(i,j) to B(i,j) to the row buffer.
@@ -94,20 +139,22 @@ SqIntMatrix SqIntMatrix::operator + (const SqIntMatrix& B){
         AplusB.array.push_back(row_buffer);     // Appends the i-th row to AplusB once all of its elements are computed.
         row_buffer.clear();     // Erases the row buffer before calculating the next row.
     }
-    return AplusB;  // Returns the result of A + B (SqIntMatrix).
+    return AplusB;  // Returns the result of A + B (SqTypeMatrix<type>).
 }
 
-SqIntMatrix SqIntMatrix::operator * (const SqIntMatrix& B){
+template <typename type>    // This method belongs to a templated class.
+SqTypeMatrix<type> SqTypeMatrix<type>::operator * (const SqTypeMatrix<type>& B){
     if (this->size != B.size){  // Can't multiply square matrices of different sizes.
-        std::cerr << "Error in 'SqIntMatrix::operator * ()': Can't multiply matrices of different sizes.\n";
-        return SqIntMatrix();   // Returns an empty matrix to end function execution.
+        std::cerr << "Error in 'SqTypeMatrix<type>::operator * ()': Can't multiply matrices of different sizes.\n";
+        return SqTypeMatrix<type>();   // Returns an empty matrix to end function execution.
     }
 
-    SqIntMatrix AtimesB;        // Stores the result of A * B.
-    AtimesB.size = this->size;  // The size of A * B is the same as that of A (or B), since these are square matrices.
+    SqTypeMatrix<type> AtimesB;     // Stores the result of A * B.
+    AtimesB.size = this->size;      // The size of A * B is the same as that of A (or B), since these are square matrices.
+    AtimesB.type_flag = this->type_flag; // The type flag of A * B is the same as that of A (or B).
 
-    int elem_buffer = 0;            // Temporarily holds the result of multiplying a row of A by a column of B.
-    std::vector<int> row_buffer;    // Temporarily holds entire rows computed when performing multiplication.
+    type elem_buffer = (type)0;           // Temporarily holds the result of multiplying a row of A by a column of B.
+    std::vector<type> row_buffer;   // Temporarily holds entire rows computed when performing multiplication.
     for (int i = 0; i < AtimesB.size; i++){
         for (int j = 0; j < AtimesB.size; j++){
             // Computes the (i, j)-th element of A * B.
@@ -115,16 +162,17 @@ SqIntMatrix SqIntMatrix::operator * (const SqIntMatrix& B){
                 elem_buffer += this->array[i][k] * B.array[k][j];
             }
             row_buffer.push_back(elem_buffer);  // Appends the result of the computation to the row buffer.
-            elem_buffer = 0;    // Resets elem_buffer for the next computation.
+            elem_buffer = (type)0;    // Resets elem_buffer for the next computation.
         }
         AtimesB.array.push_back(row_buffer);    // Appends the i-th row to AtimesB once all of its elements are computed.
         row_buffer.clear();     // Erases the row buffer before calculating the next row.
     }
-    return AtimesB; // Returns the result of A * B (SqIntMatrix).
+    return AtimesB; // Returns the result of A * B (SqTypeMatrix<type>).
 }
 
-int SqIntMatrix::main_diag_sum(){
-    int main_diag_sum = 0;  // Initializes the result to 0.
+template <typename type>    // This method belongs to a templated class.
+type SqTypeMatrix<type>::main_diag_sum(){
+    type main_diag_sum = (type)0;  // Initializes the result to 0.
     // Adds all diagonal elements of the matrix to main_diag_sum.
     for (int i = 0; i < this->size; i++){
         main_diag_sum += this->array[i][i];
@@ -132,8 +180,9 @@ int SqIntMatrix::main_diag_sum(){
     return main_diag_sum;   // Returns the main diagonal sum.
 }
 
-int SqIntMatrix::secondary_diag_sum(){
-    int secondary_diag_sum = 0; // Initializes the result to 0.
+template <typename type>    // This method belongs to a templated class.
+type SqTypeMatrix<type>::secondary_diag_sum(){
+    type secondary_diag_sum = (type)0; // Initializes the result to 0.
     // Adds all secondary-diagonal elements of the matrix to main_diag_sum.
     for (int i = 0; i < this->size; i++){
         secondary_diag_sum += this->array[this->size - 1 - i][i];
@@ -141,51 +190,55 @@ int SqIntMatrix::secondary_diag_sum(){
     return secondary_diag_sum;  // Returns the secondary diagonal sum.
 }
 
-void SqIntMatrix::swap_rows(std::size_t row1, std::size_t row2){
+template <typename type>    // This method belongs to a templated class.
+void SqTypeMatrix<type>::swap_rows(std::size_t row1, std::size_t row2){
     if (row1 >= this->size || row2 >= this->size){  // If either of the indices are out of bounds.
         // This ALSO accounts for negative numbers! (std::size_t converts negatives to extremely large positive numbers).
-        std::cerr << "Error in 'SqIntMatrix::swap_rows()': Indices out of range.\n";
+        std::cerr << "Error in 'SqTypeMatrix<type>::swap_rows()': Indices out of range.\n";
         return; // Ends function execution.
     }
     // Swaps row1 with row2 (trivial implementation).
-    std::vector<int> temp_row;  // Temporary variable for swapping.
+    std::vector<type> temp_row;  // Temporary variable for swapping.
     temp_row = this->array[row1];
     this->array[row1] = this->array[row2];
     this->array[row2] = temp_row;
     return;
 }
 
-void SqIntMatrix::swap_columns(std::size_t col1, std::size_t col2){
+template <typename type>    // This method belongs to a templated class.
+void SqTypeMatrix<type>::swap_columns(std::size_t col1, std::size_t col2){
     if (col1 >= this->size || col2 >= this->size){  // If either of the indices are out of bounds.
         // This ALSO accounts for negative numbers! (std::size_t converts negatives to extremely large positive numbers).
-        std::cerr << "Error in 'SqIntMatrix::swap_columns()': Indices out of range.\n";
+        std::cerr << "Error in 'SqTypeMatrix<type>::swap_columns()': Indices out of range.\n";
         return; // Ends function execution.
     }
     
-    int temp_int;   // Temporary variable for swapping.
+    type elem_temp;     // Temporary variable for swapping.
     for (int i = 0; i < this->size; i++){
         // Individually swaps every element of the columns.
-        temp_int = this->array[i][col1];
+        elem_temp = this->array[i][col1];
         this->array[i][col1] = this->array[i][col2];
-        this->array[i][col2] = temp_int;
+        this->array[i][col2] = elem_temp;
     }
     return;
 }
 
-int SqIntMatrix::get_value(std::size_t i, std::size_t j){   
+template <typename type>    // This method belongs to a templated class.
+type SqTypeMatrix<type>::get_value(std::size_t i, std::size_t j){   
     if (i >= this->size || j >= this->size){    // If either of the indices are out of bounds.
         // This ALSO accounts for negative numbers! (std::size_t converts negatives to extremely large positive numbers).
-        std::cerr << "Error in 'SqIntMatrix::get_value()': Indices out of range.\n";
-        return INT_MIN; // Returns INT_MIN when the indices are invalid, ending function execution.
+        std::cerr << "Error in 'SqTypeMatrix<type>::get_value()': Indices out of range.\n";
+        return std::numeric_limits<type>::min(); // Returns INT_MIN when the indices are invalid, ending function execution.
     }
 
     return this->array[i][j];   // Returns the (i, j)-th element of the matrix.
 }
 
-void SqIntMatrix::set_value(std::size_t i, std::size_t j, int new_val){
+template <typename type>    // This method belongs to a templated class.
+void SqTypeMatrix<type>::set_value(std::size_t i, std::size_t j, const type new_val){
     if (i >= this->size || j >= this->size){    // If either of the indices are out of bounds.
         // This ALSO accounts for negative numbers! (std::size_t converts negatives to extremely large positive numbers).
-        std::cerr << "Error in 'SqIntMatrix::set_value()': Indices out of range.\n";
+        std::cerr << "Error in 'SqTypeMatrix<type>::set_value()': Indices out of range.\n";
         return; // Ends function execution.
     }
 
@@ -193,7 +246,8 @@ void SqIntMatrix::set_value(std::size_t i, std::size_t j, int new_val){
     return;
 }
 
-void SqIntMatrix::display_matrix(){
+template <typename type>    // This method belongs to a templated class.
+void SqTypeMatrix<type>::display_matrix(){
     int max_width = 0;
     // Finds the maximum digit length of a matrix element (for column formatting).
     for (int i = 0; i < this->size; i++) {  
@@ -212,7 +266,7 @@ void SqIntMatrix::display_matrix(){
         }
         std::cout << "[";   // Denotes the beginning of a row.
         for (int j = 0; j < this->size; j++){   // Iterates over the matrix's columns.
-            std::cout << std::setw(max_width) << this->array[i][j]; // Prints the (i, j)-th element with proper spacing.
+            std::cout << std::setw(max_width) << std::fixed << this->array[i][j];   // Prints the (i, j)-th element with proper spacing.
             if (j != this->size - 1){   // Prints a ", " except for the last column elements.
                 std::cout << ", ";
             }
@@ -225,3 +279,8 @@ void SqIntMatrix::display_matrix(){
     std::cout << "]\n"; // Denotes the end of the matrix.
     return;
 }
+
+// Ensures the linker is able to find all possible type declarations of SqTypeMatrix when compiling (or something along these lines).
+// Compilation fails without including these template statements at the end of matrices.cpp. 
+template class SqTypeMatrix<int>;
+template class SqTypeMatrix<double>;

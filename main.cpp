@@ -11,23 +11,27 @@ Lab #           = 9
 
 #include "matrices.hpp"
 
-void test_SqIntMatrix(std::ifstream& file){
-    m_int_2tuple matrices = SqIntMatrix::read_matrices(file);   // Reads both matrices and their sizes from the file.
-    SqIntMatrix A = std::get<0>(matrices);  // Initializes the first matrix (A).
-    SqIntMatrix B = std::get<1>(matrices);  // Initializes the second matrix (B).
+template <typename type>
+void test_SqTypeMatrix(SqTypeMatrix<type>& A, SqTypeMatrix<type>& B){
+    SqTypeMatrix<type> AplusB = A + B;     // Calculates the sum of A and B.
+    SqTypeMatrix<type> AtimesB = A * B;    // Calculates the product of A and B.
     
-    SqIntMatrix AplusB = A + B;     // Calculates the sum of A and B.
-    SqIntMatrix AtimesB = A * B;    // Calculates the product of A and B.
-    
+    std::cout << "================================= TYPE FLAGS =================================\n";
+    std::cout << "(type_flag == 0) -------> int\n";
+    std::cout << "(type_flag == 1) -------> double\n";
+    std::cout << "\n";
+
     std::cout << "================================= QUESTION 1 =================================\n";
     std::cout << "------------ FIRST MATRIX (A) ------------\n";
     std::cout << "A.size = " << A.size << "\n";
+    std::cout << "A.type_flag = " << A.type_flag << "\n";
     std::cout << "A.array = \n";
     A.display_matrix(); // Prints A to std::cout.
     std::cout << "\n";
 
     std::cout << "------------ SECOND MATRIX (B) ------------\n";
     std::cout << "B.size = " << A.size << "\n";
+    std::cout << "B.type_flag = " << B.type_flag << "\n";
     std::cout << "B.array = \n";
     B.display_matrix();  // Prints B to std::cout.
     std::cout << "\n";
@@ -121,14 +125,37 @@ int main(int argc, char** argv){
             return 1;
         }
     } else {        // If no filepath is specified.
-        file.open("Lab8_Test_File.txt");
+        file.open("Lab9_Test_File.txt");
         if (!file.is_open()){
-            std::cerr << "Error in 'main()': Could not open default file 'Lab8_Test_File.txt'.\n";
+            std::cerr << "Error in 'main()': Could not open default file 'Lab9_Test_File.txt'.\n";
             return 1;
         }
     }
+    
+    // Retreives the corresponding hyper_tuple and type flag read from the file (see matrices.cpp, matrices.hpp for an in-depth explanation).
+    std::tuple<hyper_tuple, std::size_t> global_tuple = init_read_matrices(file);   
+    hyper_tuple hyp_tuple = std::get<0>(global_tuple);
+    std::size_t type_flag = std::get<1>(global_tuple);
+    
+    // Retreives all entries of the hyper_tuple. Only the entry corresponding to the parsed type flag will be employed. The rest are placeholders.
+    SqTypeMatrix<int>::m_type_2tuple m_int_tuple = std::get<0>(hyp_tuple);
+    SqTypeMatrix<double>::m_type_2tuple m_double_tuple = std::get<1>(hyp_tuple);
 
-    test_SqIntMatrix(file); // Displays the results of all methods of the SqIntMatrix class given the input text file.
-    file.close();           // Closes the file after data is read.
+    switch (type_flag){     // Calls the appropriate type instance of test_SqTypeMatrix<type>() according to the type flag.
+        case 0:     // Case type == int.
+            // Displays the results of all methods of the SqTypeMatrix<int> class when applied to the parsed matrices.
+            // A = std::get<0>(m_int_tuple) [first matrix in the file]; B = std::get<1>(m_int_tuple) [second matrix in the file].
+            test_SqTypeMatrix<int>(std::get<0>(m_int_tuple), std::get<1>(m_int_tuple));     
+            break;
+        case 1:     // Case type == double.
+            // Displays the results of all methods of the SqTypeMatrix<double> class when applied to the parsed matrices.
+            // A = std::get<0>(m_double_tuple) [first matrix in the file]; B = std::get<1>(m_double_tuple) [second matrix in the file].
+            test_SqTypeMatrix<double>(std::get<0>(m_double_tuple), std::get<1>(m_double_tuple));
+            break;
+        default:    // Other type flag values are considered invalid.
+            std::cerr << "Error in 'main()': Undefined matrix type flag.\n";
+    }
+
+    file.close();   // Closes the file after all data is read.
     return 0;
 }
